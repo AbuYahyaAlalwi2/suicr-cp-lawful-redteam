@@ -249,7 +249,6 @@ class AgentA_Topology:
         findings = []
         rng = random.Random(int(time.time()))
 
-        # Generate cyber-range lab VMs
         for i in range(vm_count):
             subnet = subnets[i % len(subnets)] if subnets else "10.0.0.0/24"
             prefix = subnet.rsplit(".", 1)[0]
@@ -267,7 +266,6 @@ class AgentA_Topology:
             }
             vms.append(vm)
 
-            # Port scan simulation
             common_ports = [22, 80, 443, 3389, 21, 23, 445, 3306, 5432, 8080, 9200]
             open_ports = sorted(rng.sample(common_ports, k=rng.randint(2, 5)))
             risk_ports = [p for p in open_ports if p in [21, 23, 3389, 445, 3306, 5432, 9200]]
@@ -542,7 +540,6 @@ class AgentI_MobileForensics:
         for e in iocs:
             severity_counts[e["severity"]] = severity_counts.get(e["severity"], 0) + 1
 
-        # Signature-less heuristic: high entropy + small size + persistence partition
         sigless = [
             e
             for e in iocs
@@ -593,7 +590,6 @@ class AgentH_WirelessAuditSimulator:
         channels = list(range(1, 15)) + [36, 40, 44, 48]
         aps = []
 
-        # Legitimate APs
         for ssid in known_ssids:
             aps.append(
                 {
@@ -610,7 +606,6 @@ class AgentH_WirelessAuditSimulator:
                 }
             )
 
-        # Rogue / spoof / unencrypted APs
         for ssid in rogue_ssids:
             is_spoof = ssid.startswith(tuple(known_ssids))
             is_unencrypted = rng.random() < 0.4
@@ -811,7 +806,6 @@ class AutonomousStrategicCommander:
         await self.state.set_agent_status("Commander", "RUNNING")
         await self.state.ledger.append("Commander", {"phase": "init"})
 
-        # Phase 1: Network, compliance, throughput, telemetry (parallel)
         network_task = asyncio.create_task(self.agent_a.execute(subnets))
         compliance_task = asyncio.create_task(self.agent_b.execute(endpoints))
         throughput_task = asyncio.create_task(self.agent_c.execute("lab-gateway", duration_sec=2, rate_hz=10))
@@ -823,20 +817,17 @@ class AutonomousStrategicCommander:
             network_task, compliance_task, throughput_task, telemetry_task
         )
 
-        # Phase 2: Mobile fleet, mobile forensics, wireless audit (parallel)
         mobile_task = asyncio.create_task(self.agent_f.execute(devices))
         forensics_task = asyncio.create_task(self.agent_i.execute(msisdn))
         wireless_task = asyncio.create_task(self.agent_h.execute())
 
         mobile, forensics, wireless = await asyncio.gather(mobile_task, forensics_task, wireless_task)
 
-        # Phase 3: Geospatial / multi-cloud
         geospatial = await self.agent_g.execute(
             coordinates=geo_coords,
             cloud_posture=cloud_posture,
         )
 
-        # Aggregate HIGH/CRITICAL risk assets
         high_risk_assets: List[str] = []
 
         for f in network.get("findings", []):
@@ -868,7 +859,6 @@ class AutonomousStrategicCommander:
             if d.get("status") == "CRITICAL":
                 high_risk_assets.append(f"telemetry:{d['variable']}")
 
-        # Compute overall risk score
         score = min(100.0, len(high_risk_assets) * 10.0)
         await self.state.set_risk(score, high_risk_assets)
         await self.state.ledger.append(
@@ -876,7 +866,6 @@ class AutonomousStrategicCommander:
             {"risk_score": score, "high_risk_count": len(high_risk_assets)},
         )
 
-        # Phase 4: SOAR isolation + Telegram alert if HIGH/CRITICAL
         telegram_result = {"ok": False, "note": "No alert triggered"}
         if score >= 40 and high_risk_assets:
             for asset in high_risk_assets[:5]:
@@ -947,7 +936,6 @@ def render_sidebar() -> Dict[str, Any]:
     azure_score = st.sidebar.slider("Azure Posture", 0, 100, 70)
     gcp_score = st.sidebar.slider("GCP Posture", 0, 100, 80)
 
-    # Parse coordinates
     coordinates: List[Tuple[float, float]] = []
     for line in coords_raw.splitlines():
         line = line.strip()
@@ -1167,7 +1155,7 @@ def render_status_tabs(snapshot: Dict[str, Any]):
         else:
             st.info("No mobile forensics data yet. Run the Commander.")
 
-            with tabs[8]:
+    with tabs[8]:
         wireless = metrics.get("wireless_audit", {})
         if wireless:
             st.markdown(f"**APs Scanned:** {wireless.get('aps_scanned')}")
