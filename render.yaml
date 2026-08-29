@@ -1,9 +1,11 @@
-yaml
 services:
   - type: web
     name: suicr-cp-lawful-redteam
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      apt-get update
+      apt-get install -y tor obfs4proxy
+      pip install -r requirements.txt
     startCommand: gunicorn app.main:app
     envVars:
       - key: TELEGRAM_TOKEN
