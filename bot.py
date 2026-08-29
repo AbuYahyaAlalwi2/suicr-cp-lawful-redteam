@@ -1,40 +1,154 @@
-import streamlit as st
+import os
+import logging
+import requests
+import socket
+import whois
 import random
 import time
-import json
+import hashlib
+import sqlite3
+from datetime import datetime
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-st.set_page_config(page_title="نظام الردع السيبراني", layout="wide")
+TOKEN = "8703097627:AAF6-XdA4mp-hn3Y-tE2D8uME1eIztwFTNY"
 
-st.title("🛡️ نظام الردع السيبراني التنفيذي")
-st.markdown("🇸🇦 لدعم الأمن الوطني والعدالة السيبرانية")
+# ===== قاعدة بيانات =====
+def init_db():
+    conn = sqlite3.connect("operations.db")
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS operations
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  op_id TEXT UNIQUE,
+                  target TEXT,
+                  action TEXT,
+                  amount TEXT,
+                  reason TEXT,
+                  timestamp TEXT,
+                  report TEXT)''')
+    conn.commit()
+    conn.close()
 
-# ===== الأزرار الجانبية =====
-st.sidebar.title("🎯 العمليات التنفيذية")
-operation = st.sidebar.radio(
-    "اختر العملية:",
-    ["🔍 تحليل موقع", "🛡️ فحص منافذ", "⚠️ فحص ثغرات", "🏦 سحب بنكي", "🌐 اختراق موقع",
-     "💰 سحب من محفظة", "📱 اختراق هاتف", "📶 اختراق شبكة", "📷 اختراق كاميرا",
-     "🕵️ اختراق سوشل ميديا", "🛒 شراء منتج", "💰 إنشاء محفظة", "💵 إيداع في محفظة",
-     "🔄 تحويل إلى خارجي", "📋 استرجاع تقرير", "💬 محادثة ذكية"]
-)
+def save_operation(op_id, target, action, amount, reason, report):
+    conn = sqlite3.connect("operations.db")
+    c = conn.cursor()
+    c.execute("INSERT INTO operations (op_id, target, action, amount, reason, timestamp, report) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              (op_id, target, action, amount, reason, datetime.now().isoformat(), report))
+    conn.commit()
+    conn.close()
 
-# ===== منطقة الإدخال =====
-st.subheader("📝 إدخال البيانات")
-user_input = st.text_area("أدخل البيانات المطلوبة (حسب العملية):", height=100)
+def get_operation(op_id):
+    conn = sqlite3.connect("operations.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM operations WHERE op_id = ?", (op_id,))
+    result = c.fetchone()
+    conn.close()
+    return result
 
-if st.button("⚡ تنفيذ"):
-    if user_input:
-        st.info("⚡ جاري تنفيذ العملية...")
-        time.sleep(2)
-        
-        # محاكاة الرد
-        op_id = "OP-" + ''.join(random.choices("0123456789ABCDEF", k=8))
-        
-        st.success(f"✅ تم التنفيذ بنجاح")
-        st.json({
-            "operation": operation,
-            "input": user_input,
-            "op_id": op_id,
+init_db()
+
+def generate_op_id(target):
+    raw = f"{target}_{datetime.now().isoformat()}_{random.randint(1000, 9999)}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:12].upper()
+
+# ===== تحليل موقع =====
+def analyze_website(url):
+    try:
+        domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+        ip = socket.gethostbyname(domain)
+        w = whois.whois(domain)
+        headers = requests.get(f"https://{domain}", timeout=5).headers
+        return {
+            "domain": domain,
+            "ip": ip,
+            "server": headers.get("Server", "غير معروف"),
+            "whois": w.text[:200],
+            "status": "✅ تحليل ناجح"
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== الأزرار =====
+def get_main_menu():
+    keyboard = [
+        [InlineKeyboardButton("🔍 تحليل موقع", callback_data="analyze")],
+        [InlineKeyboardButton("🏦 سحب بنكي", callback_data="bank")],
+        [InlineKeyboardButton("📱 اختراق هاتف", callback_data="phone")],
+        [InlineKeyboardButton("📶 اختراق شبكة", callback_data="wifi")],
+        [InlineKeyboardButton("💰 إنشاء محفظة", callback_data="create_wallet")],
+        [InlineKeyboardButton("📋 استرجاع تقرير", callback_data="get_report")],
+        [InlineKeyboardButton("💬 محادثة ذكية (AI)", callback_data="ai_chat")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+# ===== معالجة الأزرار =====
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data == "analyze":
+        await query.edit_message_text("🔍 أرسل رابط الموقع لتحليله (مثال: https://example.com)")
+    elif data == "bank":
+        await query.edit_message_text("🏦 أرسل: رقم الحساب | المبلغ | السبب")
+    elif data == "phone":
+        await query.edit_message_text("📱 أرسل: رقم الهاتف | السبب")
+    elif data == "wifi":
+        await query.edit_message_text("📶 أرسل: اسم الشبكة | السبب")
+    elif data == "create_wallet":
+        wallet_id = "0x" + ''.join(random.choices("0123456789abcdef", k=40))
+        op_id = generate_op_id(wallet_id)
+        report = json.dumps({"wallet": wallet_id, "balance": "0"}, ensure_ascii=False)
+        save_operation(op_id, wallet_id, "إنشاء محفظة", "0", "إنشاء محفظة جديدة", report)
+        await query.edit_message_text(f"✅ تم إنشاء المحفظة\n🆔 {op_id}\n💰 {wallet_id}")
+    elif data == "get_report":
+        await query.edit_message_text("📋 أرسل رقم العملية (OP-XXXXXX)")
+    elif data == "ai_chat":
+        await query.edit_message_text("💬 أرسل سؤالك، وسأستخدم الذكاء الاصطناعي للرد.")
+
+# ===== معالجة الرسائل =====
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message.text
+    msg_lower = msg.lower()
+
+    if "تحليل" in msg_lower and "http" in msg:
+        url = msg.split("تحليل")[-1].strip()
+        result = analyze_website(url)
+        if "error" in result:
+            await update.message.reply_text(f"❌ {result['error']}")
+        else:
+            op_id = generate_op_id(url)
+            report = json.dumps(result, ensure_ascii=False)
+            save_operation(op_id, url, "تحليل موقع", "N/A", "تحليل موقع", report)
+            await update.message.reply_text(
+                f"🔍 تحليل الموقع\n🆔 {op_id}\n🌐 {result['domain']}\n📡 IP: {result['ip']}\n🖥️ {result['server']}"
+            )
+    elif msg.startswith("OP-"):
+        op_id = msg.strip()
+        result = get_operation(op_id)
+        if result:
+            await update.message.reply_text(
+                f"📋 تقرير العملية {op_id}:\n🎯 {result[2]}\n⚡ {result[3]}\n💰 {result[4]}\n📝 {result[5]}"
+            )
+        else:
+            await update.message.reply_text("❌ لا توجد عملية بهذا الرقم.")
+    else:
+        await update.message.reply_text("❓ أرسل /start لرؤية الأزرار، أو اكتب 'تحليل موقع example.com'")
+
+# ===== تشغيل البوت =====
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🛡️ نظام الردع السيبراني\n🇸🇦 اختر العملية:",
+        reply_markup=get_main_menu()
+    )
+
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("✅ البوت يعمل...")
+    app.run_polling()            "op_id": op_id,
             "status": "تم التنفيذ",
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         })
