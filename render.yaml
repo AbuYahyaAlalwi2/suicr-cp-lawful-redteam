@@ -1,11 +1,8 @@
 services:
   - type: web
-    name: suicr-cp-bot
+    name: suicr-cp-lawful-redteam
     env: python
-    buildCommand: |
-      apt-get update
-      apt-get install -y nmap nikto
-      pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
     envVars:
       - key: TOKEN
