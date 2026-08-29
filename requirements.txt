@@ -1,5 +1,5 @@
-requests>=2.32.0
 python-telegram-bot==20.0
-cryptography>=42.0.0
-python-whois>=0.8.0
-python-nmap>=0.7.1
+requests
+whois
+python-nmap
+cryptography
