@@ -1,40 +1,68 @@
-import os
-import logging
-import json
-import socket
-import whois
-import requests
-import subprocess
+import streamlit as st
 import random
 import time
-import hashlib
-import sqlite3
-import re
-from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    filters,
-    ContextTypes
+import json
+
+st.set_page_config(page_title="نظام الردع السيبراني", layout="wide")
+
+st.title("🛡️ نظام الردع السيبراني التنفيذي")
+st.markdown("🇸🇦 لدعم الأمن الوطني والعدالة السيبرانية")
+
+# ===== الأزرار الجانبية =====
+st.sidebar.title("🎯 العمليات التنفيذية")
+operation = st.sidebar.radio(
+    "اختر العملية:",
+    ["🔍 تحليل موقع", "🛡️ فحص منافذ", "⚠️ فحص ثغرات", "🏦 سحب بنكي", "🌐 اختراق موقع",
+     "💰 سحب من محفظة", "📱 اختراق هاتف", "📶 اختراق شبكة", "📷 اختراق كاميرا",
+     "🕵️ اختراق سوشل ميديا", "🛒 شراء منتج", "💰 إنشاء محفظة", "💵 إيداع في محفظة",
+     "🔄 تحويل إلى خارجي", "📋 استرجاع تقرير", "💬 محادثة ذكية"]
 )
 
-# ===== التوكن =====
-TELEGRAM_TOKEN = "8703097627:AAF6-XdA4mp-hn3Y-tE2D8uME1eIztwFTNY"
+# ===== منطقة الإدخال =====
+st.subheader("📝 إدخال البيانات")
+user_input = st.text_area("أدخل البيانات المطلوبة (حسب العملية):", height=100)
 
-# ===== قاعدة البيانات =====
-def init_db():
-    conn = sqlite3.connect("operations.db")
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS operations
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  op_id TEXT UNIQUE,
-                  target TEXT,
-                  action TEXT,
-                  amount TEXT,
-                  reason TEXT,
+if st.button("⚡ تنفيذ"):
+    if user_input:
+        st.info("⚡ جاري تنفيذ العملية...")
+        time.sleep(2)
+        
+        # محاكاة الرد
+        op_id = "OP-" + ''.join(random.choices("0123456789ABCDEF", k=8))
+        
+        st.success(f"✅ تم التنفيذ بنجاح")
+        st.json({
+            "operation": operation,
+            "input": user_input,
+            "op_id": op_id,
+            "status": "تم التنفيذ",
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        })
+        
+        # حفظ في قاعدة بيانات محاكاة
+        st.session_state.setdefault("operations", []).append({
+            "op_id": op_id,
+            "operation": operation,
+            "input": user_input,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        })
+    else:
+        st.error("❌ يرجى إدخال البيانات المطلوبة.")
+
+# ===== عرض العمليات السابقة =====
+st.sidebar.markdown("---")
+st.sidebar.subheader("📋 العمليات السابقة")
+if "operations" in st.session_state and st.session_state.operations:
+    for op in st.session_state.operations[-5:]:
+        st.sidebar.text(f"{op['op_id']} - {op['operation']}")
+else:
+    st.sidebar.text("لا توجد عمليات سابقة")
+
+# ===== حالة النظام =====
+st.sidebar.markdown("---")
+st.sidebar.subheader("📊 حالة النظام")
+st.sidebar.success("✅ النظام يعمل")
+st.sidebar.info(f"⏰ {time.strftime('%Y-%m-%d %H:%M:%S')}")                  reason TEXT,
                   timestamp TEXT,
                   report TEXT)''')
     conn.commit()
