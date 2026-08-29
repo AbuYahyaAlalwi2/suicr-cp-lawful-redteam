@@ -1,4 +1,3 @@
-```yaml
 services:
   - type: web
     name: suicr-cp-bot
@@ -6,8 +5,5 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
     envVars:
-      - key: TOKEN
-        value: 8703097627:AAF6-XdA4mp-hn3Y-tE2D8uME1eIztwFTNY
-```
-
----
+      - key: TELEGRAM_BOT_TOKEN
+        fromEnv: TELEGRAM_BOT_TOKEN
