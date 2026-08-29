@@ -1,0 +1,15 @@
+def send_decoy_traffic():
+    """
+    إرسال حزم وهمية بشكل عشوائي
+    لجعل حركة المرور الحقيقية غير واضحة
+    """
+    while True:
+        # زيارة مواقع عشوائية
+        random_sites = [
+            "https://www.google.com",
+            "https://www.youtube.com",
+            "https://www.wikipedia.org",
+        ]
+        site = random.choice(random_sites)
+        stealth.stealth_request(site)
+        time.sleep(random.uniform(10, 60))  # كل 10-60 ثانية
