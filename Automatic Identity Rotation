@@ -1,0 +1,17 @@
+def rotate_identity():
+    """
+    تغيير الهوية الرقمية بالكامل:
+    - عنوان IP جديد (عبر TOR أو VPN)
+    - بصمة متصفح جديدة
+    - ملفات تعريف ارتباط (Cookies) جديدة
+    """
+    # 1. تغيير مسار TOR
+    stealth.renew_tor_circuit()
+    
+    # 2. تغيير وكيل المستخدم
+    new_user_agent = stealth.get_random_user_agent()
+    
+    # 3. مسح الكوكيز والجلسات
+    requests.Session().cookies.clear()
+    
+    return {"status": "تم تغيير الهوية", "new_ip": get_current_ip()}
