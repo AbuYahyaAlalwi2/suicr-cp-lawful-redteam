@@ -3,6 +3,7 @@ import logging
 import requests
 import socket
 import whois
+import json
 import random
 import time
 import hashlib
@@ -148,109 +149,7 @@ if __name__ == "__main__":
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("✅ البوت يعمل...")
-    app.run_polling()            "op_id": op_id,
-            "status": "تم التنفيذ",
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-        })
-        
-        # حفظ في قاعدة بيانات محاكاة
-        st.session_state.setdefault("operations", []).append({
-            "op_id": op_id,
-            "operation": operation,
-            "input": user_input,
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-        })
-    else:
-        st.error("❌ يرجى إدخال البيانات المطلوبة.")
-
-# ===== عرض العمليات السابقة =====
-st.sidebar.markdown("---")
-st.sidebar.subheader("📋 العمليات السابقة")
-if "operations" in st.session_state and st.session_state.operations:
-    for op in st.session_state.operations[-5:]:
-        st.sidebar.text(f"{op['op_id']} - {op['operation']}")
-else:
-    st.sidebar.text("لا توجد عمليات سابقة")
-
-# ===== حالة النظام =====
-st.sidebar.markdown("---")
-st.sidebar.subheader("📊 حالة النظام")
-st.sidebar.success("✅ النظام يعمل")
-st.sidebar.info(f"⏰ {time.strftime('%Y-%m-%d %H:%M:%S')}")                  reason TEXT,
-                  timestamp TEXT,
-                  report TEXT)''')
-    conn.commit()
-    conn.close()
-
-def save_operation(op_id, target, action, amount, reason, report):
-    conn = sqlite3.connect("operations.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO operations (op_id, target, action, amount, reason, timestamp, report) VALUES (?, ?, ?, ?, ?, ?, ?)",
-              (op_id, target, action, amount, reason, datetime.now().isoformat(), report))
-    conn.commit()
-    conn.close()
-
-def get_operation(op_id):
-    conn = sqlite3.connect("operations.db")
-    c = conn.cursor()
-    c.execute("SELECT * FROM operations WHERE op_id = ?", (op_id,))
-    result = c.fetchone()
-    conn.close()
-    return result
-
-init_db()
-
-def generate_op_id(target):
-    raw = f"{target}_{datetime.now().isoformat()}_{random.randint(1000, 9999)}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:12].upper()
-
-# ===== نماذج الذكاء الاصطناعي (متعددة لتجاوز القيود) =====
-AI_MODELS = [
-    {"name": "OpenRouter", "url": "https://openrouter.ai/api/v1/chat/completions", "key": "your-openrouter-key", "model": "mistralai/mistral-7b-instruct"},
-    {"name": "Gemini", "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "key": "your-gemini-key", "model": "gemini-1.5-flash"}
-]
-
-def ask_ai(prompt):
-    for model in AI_MODELS:
-        try:
-            if model["name"] == "OpenRouter":
-                headers = {"Authorization": f"Bearer {model['key']}", "Content-Type": "application/json"}
-                data = {"model": model["model"], "messages": [{"role": "user", "content": prompt}]}
-                response = requests.post(model["url"], headers=headers, json=data, timeout=10)
-                return response.json()["choices"][0]["message"]["content"]
-            elif model["name"] == "Gemini":
-                url = f"{model['url']}?key={model['key']}"
-                data = {"contents": [{"parts": [{"text": prompt}]}]}
-                response = requests.post(url, json=data, timeout=10)
-                return response.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except:
-            continue
-    return "⚠️ جميع النماذج غير متاحة حالياً، حاول لاحقًا."
-
-# ===== الأدوات التنفيذية =====
-def analyze_website(url):
-    try:
-        domain = url.replace("https://", "").replace("http://", "").split("/")[0]
-        ip = socket.gethostbyname(domain)
-        w = whois.whois(domain)
-        headers = requests.get(f"https://{domain}", timeout=5).headers
-        return {
-            "domain": domain,
-            "ip": ip,
-            "server": headers.get("Server", "غير معروف"),
-            "whois": w.text[:300],
-            "status": "✅ تحليل ناجح"
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-def scan_ports(domain):
-    try:
-        ip = socket.gethostbyname(domain)
-        result = subprocess.run(["nmap", "-F", ip], capture_output=True, text=True, timeout=10)
-        return result.stdout[:500]
-    except:
-        return "⚠️ nmap غير مثبت على السيرفر"
+    app.run_polling() السيرفر"
 
 def scan_vulnerabilities(url):
     try:
