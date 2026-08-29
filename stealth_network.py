@@ -1,4 +1,3 @@
-python
 # app/core/stealth_network.py
 """
 نظام الاتصالات المخفية متعدد الطبقات
