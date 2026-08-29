@@ -1,0 +1,13 @@
+# استخدام مكتبة curl_cffi لتقليد متصفح حقيقي
+from curl_cffi import requests
+
+def stealth_request_with_impersonation(url):
+    """
+    طلب مع تقليد بصمة متصفح حقيقي (Chrome, Firefox, etc.)
+    """
+    response = requests.get(
+        url,
+        impersonate="chrome122",  # تقليد Chrome 122
+        timeout=30
+    )
+    return response
