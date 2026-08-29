@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الردع السيبراني</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0a0a0a; color: #fff; }
+        .container { max-width: 1200px; margin: auto; padding: 20px; }
+        .card { background: #1a1a1a; padding: 20px; border-radius: 10px; margin: 10px; }
+        .btn { background: #00aaff; border: none; padding: 10px 20px; color: #fff; border-radius: 5px; cursor: pointer; }
+        .btn:hover { background: #0088cc; }
+        input, select { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #333; background: #222; color: #fff; width: 200px; }
+        .result { background: #111; padding: 10px; border-radius: 5px; margin: 10px 0; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ نظام الردع السيبراني</h1>
+        <div class="card">
+            <h3>🔍 تحليل موقع</h3>
+            <input type="text" id="url" placeholder="https://example.com">
+            <button class="btn" onclick="analyze()">تحليل</button>
+            <div id="result1" class="result"></div>
+        </div>
+        <div class="card">
+            <h3>🏦 سحب بنكي</h3>
+            <input type="text" id="account" placeholder="رقم الحساب">
+            <input type="number" id="amount" placeholder="المبلغ">
+            <input type="text" id="reason" placeholder="السبب">
+            <button class="btn" onclick="bankWithdraw()">تنفيذ</button>
+            <div id="result2" class="result"></div>
+        </div>
+        <div class="card">
+            <h3>💰 إنشاء محفظة</h3>
+            <button class="btn" onclick="createWallet()">إنشاء</button>
+            <div id="result3" class="result"></div>
+        </div>
+        <div class="card">
+            <h3>📋 استرجاع تقرير</h3>
+            <input type="text" id="op_id" placeholder="OP-XXXXXX">
+            <button class="btn" onclick="getOperation()">استرجاع</button>
+            <div id="result4" class="result"></div>
+        </div>
+    </div>
+    <script>
+        async function analyze() {
+            const url = document.getElementById('url').value;
+            const res = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({url})
+            });
+            const data = await res.json();
+            document.getElementById('result1').textContent = JSON.stringify(data, null, 2);
+        }
+        async function bankWithdraw() {
+            const account = document.getElementById('account').value;
+            const amount = document.getElementById('amount').value;
+            const reason = document.getElementById('reason').value;
+            const res = await fetch('/api/bank/withdraw', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({account, amount, reason})
+            });
+            const data = await res.json();
+            document.getElementById('result2').textContent = JSON.stringify(data, null, 2);
+        }
+        async function createWallet() {
+            const res = await fetch('/api/wallet/create', {method: 'POST'});
+            const data = await res.json();
+            document.getElementById('result3').textContent = JSON.stringify(data, null, 2);
+        }
+        async function getOperation() {
+            const op_id = document.getElementById('op_id').value;
+            const res = await fetch(`/api/operation/${op_id}`);
+            const data = await res.json();
+            document.getElementById('result4').textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
