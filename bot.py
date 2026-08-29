@@ -1,6 +1,7 @@
 import os
 import logging
 import sys
+import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from dotenv import load_dotenv
@@ -58,7 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🛡️ *نظام الأمن السيبراني الوطني*\n"
         "🇸🇦 جاهز لخدمتك!\n\n"
         "📌 *الأوامر المتاحة:*\n"
-        "• تحليل الموقع [URL]\n"
+        "• تحليل ال��وقع [URL]\n"
         "• اخترق موقع [URL]\n"
         "• اعطني مفتاح [Google/AWS/Oracle]\n"
         "• اعرض حالة النظام\n"
@@ -203,36 +204,45 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     if update and hasattr(update, 'message') and update.message:
         await update.message.reply_text("❌ حدث خطأ في معالجة طلبك. يرجى المحاولة مجدداً.")
 
+# ===== دالة البدء الرئيسية =====
+async def main():
+    """دالة رئيسية للبوت"""
+    logger.info("🚀 جاري تشغيل البوت...")
+    print("")
+    print("╔═══════════════════════════════════════════════════════╗")
+    print("║   🛡️  SUICR-CP Telegram Bot  🛡️                      ║")
+    print("║           تم تشغيل البوت بنجاح!                       ║")
+    print("║                                                       ║")
+    print("║  ✅ البوت جاهز لاستقبال الرسائل                       ║")
+    print("║  📲 ابدأ بإرسال /start أو أي أمر                     ║")
+    print("╚═══════════════════════════════════════════════════════╝")
+    print("")
+    
+    app = ApplicationBuilder().token(TOKEN).build()
+    
+    # إضافة معالجات الأوامر
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("status", status_command))
+    
+    # معالج الرسائل النصية
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # معالج الأخطاء
+    app.add_error_handler(error_handler)
+    
+    logger.info("✅ البوت يعمل ويستقبل الرسائل...")
+    
+    # استخدام async بشكل صحيح
+    async with app:
+        await app.start()
+        await app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+        await asyncio.Event().wait()
+
 # ===== تشغيل البوت =====
 if __name__ == "__main__":
     try:
-        logger.info("🚀 جاري تشغيل البوت...")
-        print("")
-        print("╔═══════════════════════════════════════════════════════╗")
-        print("║   🛡️  SUICR-CP Telegram Bot  🛡️                      ║")
-        print("║           تم تشغيل البوت بنجاح!                       ║")
-        print("║                                                       ║")
-        print("║  ✅ البوت جاهز لاستقبال الرسائل                       ║")
-        print("║  📲 ابدأ بإرسال /start أو أي أمر                     ║")
-        print("╚═══════════════════════════════════════════════════════╝")
-        print("")
-        
-        app = ApplicationBuilder().token(TOKEN).build()
-        
-        # إضافة معالجات الأوامر
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(CommandHandler("status", status_command))
-        
-        # معالج الرسائل النصية
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-        
-        # معالج الأخطاء
-        app.add_error_handler(error_handler)
-        
-        logger.info("✅ البوت يعمل ويستقبل الرسائل...")
-        app.run_polling(allowed_updates=Update.ALL_TYPES)
-        
+        asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("\n🛑 تم إيقاف البوت من قبل المستخدم")
     except Exception as e:
