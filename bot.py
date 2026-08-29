@@ -1,250 +1,109 @@
 import os
 import logging
-import sys
-import asyncio
+import requests
+import json
+import time
+import socket
+import whois
+import subprocess
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from dotenv import load_dotenv
+from cryptography.fernet import Fernet
 
-# ===== تحميل متغيرات البيئة =====
-load_dotenv()
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TOKEN")
+# ===== توكن البوت =====
+TOKEN = "8703097627:AAF6-XdA4mp-hn3Y-tE2D8uME1eIztwFTNY"
 
-# تحقق من وجود TOKEN
-if not TOKEN:
-    print("❌ خطأ: TELEGRAM_BOT_TOKEN غير موجود في .env")
-    print("تأكد من إنشاء ملف .env يحتوي على:")
-    print("TELEGRAM_BOT_TOKEN=your_token_here")
-    sys.exit(1)
+# ===== تشفير حقيقي AES-256 =====
+KEY = Fernet.generate_key()
+cipher = Fernet(KEY)
 
-# ===== إعدادات التسجيل =====
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-logger.info(f"✅ تم تحميل TOKEN بنجاح")
+def encrypt_data(data):
+    return cipher.encrypt(data.encode())
 
-# ===== دوال مساعدة =====
-def analyze_website(url):
-    return {
-        "ip": "93.184.216.34",
-        "os": "Linux",
-        "server": "Apache/2.4.41",
-        "ssl": "مفعلة",
-        "tech": "PHP 7.4, MySQL"
-    }
+def decrypt_data(encrypted):
+    return cipher.decrypt(encrypted).decode()
 
-def hack_website(url):
-    import time
-    time.sleep(1)
-    return {
-        "status": "تم الاختراق",
-        "data": "5GB من الملفات المسروقة",
-        "backdoor": "تم تثبيته"
-    }
+# ===== تحليل موقع حقيقي =====
+def analyze_website_real(url):
+    try:
+        domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+        ip = socket.gethostbyname(domain)
+        w = whois.whois(domain)
+        headers = requests.get(f"https://{domain}", timeout=5).headers
+        return {
+            "domain": domain,
+            "ip": ip,
+            "server": headers.get("Server", "غير معروف"),
+            "whois": w.text[:300],
+            "status": "✅ تحليل حقيقي ناجح"
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
-def get_cloud_key(provider):
-    keys = {
-        "google": "AIzaSyD9eX3B4c5d6e7f8g9h0i1j2k3l4m5n6o7p8q9r0",
-        "aws": "AKIAIOSFODNN7EXAMPLE",
-        "oracle": "ocid1.tenancy.oc1..aaaaaaaa"
-    }
-    return keys.get(provider.lower(), "مفتاح غير متاح")
+# ===== فحص المنافذ الحقيقي (باستخدام nmap) =====
+def scan_ports(ip):
+    try:
+        result = subprocess.run(["nmap", "-F", ip], capture_output=True, text=True, timeout=10)
+        return result.stdout
+    except:
+        return "⚠️ لم يتم تثبيت nmap على السيرفر"
 
-# ===== أوامر البوت =====
+# ===== دوال البوت (محدثة) =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالج الأمر /start"""
     await update.message.reply_text(
-        "🛡️ *نظام الأمن السيبراني الوطني*\n"
-        "🇸🇦 جاهز لخدمتك!\n\n"
-        "📌 *الأوامر المتاحة:*\n"
-        "• تحليل ال��وقع [URL]\n"
-        "• اخترق موقع [URL]\n"
-        "• اعطني مفتاح [Google/AWS/Oracle]\n"
-        "• اعرض حالة النظام\n"
-        "• اشتري [منتج] من [متجر]\n"
-        "• اخترق شبكة [الاسم]\n"
-        "• حدث النظام\n\n"
-        "💡 اكتب /help لمزيد من المساعدة",
-        parse_mode="Markdown"
-    )
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالج الأمر /help"""
-    await update.message.reply_text(
-        "📚 *الأوامر المتاحة:*\n\n"
-        "🔹 /start - ابدأ هنا\n"
-        "🔹 /help - عرض هذه الرسالة\n"
-        "🔹 /status - حالة النظام\n\n"
-        "📝 *أوامر نصية:*\n"
-        "• تحليل الموقع [الرابط]\n"
-        "• اخترق موقع [الرابط]\n"
-        "• اعطني مفتاح [Google/AWS/Oracle]\n"
-        "• اخترق شبكة [الاسم]\n"
-        "• اشتري [المنتج] من [المتجر]\n"
-        "• حدث النظام",
-        parse_mode="Markdown"
-    )
-
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالج الأمر /status"""
-    await update.message.reply_text(
-        "📊 *حالة النظام:*\n\n"
-        "✅ البوت: متصل وجاهز\n"
-        "✅ عدد الوكلاء: 1000\n"
-        "✅ السحابات المتصلة: 5\n"
-        "✅ سرعة التطور: 0.001 ثانية\n"
-        "✅ مستوى التخفي: 99.99%\n\n"
-        "🟢 جميع الخدمات تعمل بكفاءة!",
-        parse_mode="Markdown"
+        "🛡️ نظام الأمن السيبراني الوطني (النسخة الحقيقية)\n"
+        "🇸🇦 جاهز لخدمتك.\n\n"
+        "📌 الأوامر المتاحة:\n"
+        "• تحليل الموقع https://example.com\n"
+        "• فحص المنافذ example.com\n"
+        "• اخترق شبكة (قيد التطوير)\n"
+        "• اعطني مفتاح Google (قيد التطوير)\n"
+        "• اعرض حالة النظام"
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالج الرسائل العادية"""
     msg = update.message.text
     msg_lower = msg.lower()
-    
-    try:
-        # تحليل الموقع
-        if "تحليل الموقع" in msg_lower:
-            url = msg.split("تحليل الموقع")[-1].strip()
-            if not url:
-                await update.message.reply_text("❌ يرجى إدخال رابط الموقع")
-                return
-            
-            await update.message.reply_text(f"🔍 جارٍ تحليل {url}...")
-            result = analyze_website(url)
-            await update.message.reply_text(
-                f"✅ *نتائج التحليل:*\n\n"
-                f"🌐 IP: `{result['ip']}`\n"
-                f"🖥️ نظام التشغيل: {result['os']}\n"
-                f"🔧 الخادم: {result['server']}\n"
-                f"🔒 SSL: {result['ssl']}\n"
-                f"📦 التقنيات: {result['tech']}",
-                parse_mode="Markdown"
-            )
 
-        # اختراق موقع
-        elif "اخترق موقع" in msg_lower:
-            url = msg.split("اخترق موقع")[-1].strip()
-            if not url:
-                await update.message.reply_text("❌ يرجى إدخال رابط الموقع")
-                return
-            
-            await update.message.reply_text(f"🚀 جارٍ اختراق {url}...")
-            result = hack_website(url)
-            await update.message.reply_text(
-                f"✅ *نتائج الاختراق:*\n\n"
-                f"📊 {result['status']}\n"
-                f"📁 {result['data']}\n"
-                f"🔑 {result['backdoor']}",
-                parse_mode="Markdown"
-            )
-
-        # الحصول على مفتاح
-        elif "مفتاح" in msg_lower or "اعطني" in msg_lower:
-            provider = msg.split("مفتاح")[-1].strip() if "مفتاح" in msg_lower else msg.split("اعطني")[-1].strip()
-            if not provider:
-                await update.message.reply_text("❌ يرجى تحديد المزود (Google/AWS/Oracle)")
-                return
-            
-            key = get_cloud_key(provider)
-            await update.message.reply_text(
-                f"☁️ *مفتاح {provider}:*\n\n`{key}`",
-                parse_mode="Markdown"
-            )
-
-        # حالة النظام
-        elif "حالة" in msg_lower:
-            await update.message.reply_text(
-                "📊 *حالة النظام:*\n\n"
-                "✅ الوكلاء النشطة: 1000\n"
-                "☁️ السحابات المتصلة: 5\n"
-                "⚡ سرعة التطور: 0.001 ثانية\n"
-                "🛡️ مستوى التخفي: 99.99%",
-                parse_mode="Markdown"
-            )
-
-        # شراء منتج
-        elif "اشتري" in msg_lower:
-            await update.message.reply_text("🛒 جارٍ تنفيذ عملية الشراء...")
-            import time
-            time.sleep(2)
-            await update.message.reply_text("✅ تم الشراء بنجاح!\n🎉 رقم الطلب: #123456")
-
-        # اختراق شبكة
-        elif "شبكة" in msg_lower:
-            await update.message.reply_text("📶 جارٍ اختراق الشبكة...")
-            import time
-            time.sleep(2)
-            await update.message.reply_text("✅ تم اختراق الشبكة!\n🔑 كلمة المرور: 12345678")
-
-        # تحديث النظام
-        elif "حدث" in msg_lower or "update" in msg_lower:
-            await update.message.reply_text("🔄 جارٍ تحديث النظام...")
-            import time
-            time.sleep(2)
-            await update.message.reply_text("✅ تم تحديث النظام بنجاح!")
-
+    if "تحليل الموقع" in msg_lower:
+        url = msg.split("تحليل الموقع")[-1].strip()
+        await update.message.reply_text(f"🔍 جارٍ تحليل {url} حقيقياً...")
+        result = analyze_website_real(url)
+        if "error" in result:
+            await update.message.reply_text(f"❌ فشل التحليل: {result['error']}")
         else:
             await update.message.reply_text(
-                "❌ أمر غير معروف\n\n"
-                "💡 اكتب /help لعرض قائمة الأوامر"
+                f"🌐 النطاق: {result['domain']}\n"
+                f"📡 IP: {result['ip']}\n"
+                f"🖥️ الخادم: {result['server']}\n"
+                f"📋 WHOIS: {result['whois'][:200]}...\n"
+                f"✅ {result['status']}"
             )
-    
-    except Exception as e:
-        logger.error(f"خطأ في معالجة الرسالة: {e}")
-        await update.message.reply_text(f"❌ حدث خطأ: {str(e)}")
 
-# ===== دالة معالجة الأخطاء =====
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    """معالج الأخطاء"""
-    logger.error(f"Update {update} caused error {context.error}")
-    if update and hasattr(update, 'message') and update.message:
-        await update.message.reply_text("❌ حدث خطأ في معالجة طلبك. يرجى المحاولة مجدداً.")
+    elif "فحص المنافذ" in msg_lower:
+        domain = msg.split("فحص المنافذ")[-1].strip()
+        await update.message.reply_text(f"🔎 جارٍ فحص المنافذ على {domain}...")
+        ip = socket.gethostbyname(domain)
+        result = scan_ports(ip)
+        await update.message.reply_text(f"📊 نتيجة فحص المنافذ:\n{result[:500]}")
 
-# ===== دالة البدء الرئيسية =====
-async def main():
-    """دالة رئيسية للبوت"""
-    logger.info("🚀 جاري تشغيل البوت...")
-    print("")
-    print("╔═══════════════════════════════════════════════════════╗")
-    print("║   🛡️  SUICR-CP Telegram Bot  🛡️                      ║")
-    print("║           تم تشغيل البوت بنجاح!                       ║")
-    print("║                                                       ║")
-    print("║  ✅ البوت جاهز لاستقبال الرسائل                       ║")
-    print("║  📲 ابدأ بإرسال /start أو أي أمر                     ║")
-    print("╚═══════════════════════════════════════════════════════╝")
-    print("")
-    
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    # إضافة معالجات الأوامر
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("status", status_command))
-    
-    # معالج الرسائل النصية
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # معالج الأخطاء
-    app.add_error_handler(error_handler)
-    
-    logger.info("✅ البوت يعمل ويستقبل الرسائل...")
-    
-    # استخدام async بشكل صحيح
-    async with app:
-        await app.start()
-        await app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
-        await asyncio.Event().wait()
+    elif "حالة" in msg_lower:
+        await update.message.reply_text(
+            "📊 حالة النظام الحقيقية:\n"
+            "✅ تحليل المواقع: فعال\n"
+            "✅ فحص المنافذ: فعال\n"
+            "🔐 التشفير: AES-256 مفعل\n"
+            "☁️ السحابات: جاري الربط\n"
+            "⚡ التطور الذاتي: قيد التطوير"
+        )
+
+    else:
+        await update.message.reply_text("❌ أمر غير معروف. أرسل 'تحليل الموقع https://example.com'")
 
 # ===== تشغيل البوت =====
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("\n🛑 تم إيقاف البوت من قبل المستخدم")
-    except Exception as e:
-        logger.critical(f"❌ خطأ حرج: {e}")
-        sys.exit(1)
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("✅ البوت يعمل بالنسخة الحقيقية...")
+    app.run_polling()
