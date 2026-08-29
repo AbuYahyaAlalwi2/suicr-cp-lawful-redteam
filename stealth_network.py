@@ -1,131 +1,103 @@
-# app/core/stealth_network.py
-"""
-نظام الاتصالات المخفية متعدد الطبقات
-يضمن أن جميع الاتصالات الخارجية لا يمكن تتبعها أو حظرها
-"""
-
-import os
+# app/core/stealth_network.py (محدث)
+import requests
 import random
 import time
 import socket
-import requests
-from stem import Signal
-from stem.control import Controller
-import socks  # PySocks
-import socket
+from app.core.tor_manager import TorManager
 
 class StealthNetwork:
-    """
-    مدير الاتصالات المخفية
-    يدعم TOR، I2P، VPN، والبروكسيات المتعددة
-    """
+    _instance = None
+    _tor_manager = None
     
-    def __init__(self):
-        self.tor_controller = None
-        self.current_circuit = None
-        self.proxy_pool = self.load_proxy_pool()
-        self.vpn_servers = self.load_vpn_servers()
-        self.bridges = self.load_tor_bridges()
-        
-    def load_proxy_pool(self):
-        """تحميل قائمة بروكسيات (يتم تحديثها تلقائياً)"""
-        # يمكن جلبها من مصادر مجانية أو إنشائها داخلياً
-        return [
-            {"type": "socks5", "host": "127.0.0.1", "port": 9050},  # TOR
-            {"type": "socks5", "host": "127.0.0.1", "port": 4444},  # I2P
-            # يمكن إضافة بروكسيات مستأجرة
-        ]
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialize()
+        return cls._instance
     
-    def load_tor_bridges(self):
-        """تحميل جسور TOR غير المعلنة (لتجنب الحظر)"""
-        # يمكن الحصول عليها من https://bridges.torproject.org/
-        return [
-            "bridge1.example.com:443",
-            "bridge2.example.com:443",
-        ]
+    def _initialize(self):
+        """تهيئة الشبكة المخفية (تشغيل Tor تلقائياً)"""
+        self.tor_manager = TorManager()
+        self.tor_manager.start()
+        self.session = self.create_stealth_session()
     
-    def get_stealth_session(self):
-        """
-        إنشاء جلسة اتصال مخفية
-        - تغيير بصمة TLS لمحاكاة متصفح حقيقي
-        - توجيه عبر TOR أو I2P
-        - تغيير عنوان IP تلقائياً
-        """
+    def create_stealth_session(self):
+        """إنشاء جلسة طلبات مخفية"""
         session = requests.Session()
         
-        # 1. تعيين بروكسي TOR
-        session.proxies = {
-            'http': 'socks5h://127.0.0.1:9050',
-            'https': 'socks5h://127.0.0.1:9050'
-        }
+        # تعيين البروكسي عبر Tor
+        proxy = self.tor_manager.get_proxy()
+        session.proxies.update(proxy)
         
-        # 2. تمويه بصمة المتصفح (تجنب الكشف)
+        # تمويه بصمة المتصفح
         session.headers.update({
             'User-Agent': self.get_random_user_agent(),
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br',
-            'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'DNT': '1',
         })
         
-        # 3. إضافة تأخير عشوائي (محاكاة السلوك البشري)
-        session.hooks = {
-            'response': lambda r, *args, **kwargs: time.sleep(random.uniform(0.5, 2.0))
-        }
+        # إعادة المحاولات في حالة الفشل
+        session.max_redirects = 5
+        session.timeout = (10, 30)  # connect, read timeout
         
         return session
     
     def get_random_user_agent(self):
-        """الحصول على وكيل مستخدم عشوائي لمتصفح حقيقي"""
-        user_agents = [
+        """الحصول على وكيل مستخدم عشوائي"""
+        agents = [
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/124.0',
         ]
-        return random.choice(user_agents)
+        return random.choice(agents)
     
-    def renew_tor_circuit(self):
-        """تغيير مسار TOR (الحصول على هوية جديدة)"""
-        try:
-            with Controller.from_port(port=9051) as controller:
-                controller.authenticate(password="your_password")
-                controller.signal(Signal.NEWNYM)
-                return True
-        except:
-            return False
-    
-    def stealth_request(self, url, method='GET', data=None, headers=None):
+    def stealth_request(self, url, method='GET', data=None, json_data=None, headers=None):
         """
-        تنفيذ طلب مخفي بالكامل
-        - تغيير المسار تلقائياً إذا تم اكتشافه
-        - إعادة المحاولة مع مسار مختلف
+        تنفيذ طلب مخفي بالكامل مع إعادة محاولة تلقائية
         """
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                session = self.get_stealth_session()
+                session = self.create_stealth_session()
+                
                 if headers:
                     session.headers.update(headers)
                 
+                # تنفيذ الطلب
                 if method.upper() == 'GET':
                     response = session.get(url, timeout=30)
                 elif method.upper() == 'POST':
-                    response = session.post(url, json=data, timeout=30)
+                    response = session.post(url, data=data, json=json_data, timeout=30)
                 else:
-                    response = session.request(method, url, json=data, timeout=30)
+                    response = session.request(method, url, data=data, json=json_data, timeout=30)
                 
-                # إذا تم الحظر، جدد المسار
+                # إذا تم الحظر (كود 403 أو 429)، جدد الهوية
                 if response.status_code in [403, 429, 503]:
-                    self.renew_tor_circuit()
+                    self.tor_manager.renew_identity()
+                    time.sleep(2)
                     continue
                 
                 return response
                 
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                # تغيير الهوية وإعادة المحاولة
+                self.tor_manager.renew_identity()
+                time.sleep(random.uniform(1, 3))
+                continue
+            
             except Exception as e:
-                # تغيير المسار ومحاولة مجدداً
-                self.renew_tor_circuit()
-                time.sleep(random.uniform(2, 5))
+                logger.error(f"خطأ في الطلب المخفي: {str(e)}")
                 continue
         
+        # إذا فشلت جميع المحاولات
         return None
+    
+    def renew_identity(self):
+        """تجديد هوية النظام بالكامل"""
+        self.tor_manager.renew_identity()
+        self.session = self.create_stealth_session()
+        return True
