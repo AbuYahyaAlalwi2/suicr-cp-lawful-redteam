@@ -4,3 +4,6 @@ requests
 whois
 python-telegram-bot==20.0
 sqlalchemy
+stem  # للتحكم في TOR
+pysocks  # للاتصال عبر SOCKS5
+curl-cffi  # لتقليد بصمة المتصفح
