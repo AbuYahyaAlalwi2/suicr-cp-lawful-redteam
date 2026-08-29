@@ -2,8 +2,10 @@ services:
   - type: web
     name: suicr-cp-bot
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install -r requirements.txt
+      apt-get update && apt-get install -y nmap
     startCommand: python bot.py
     envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        fromEnv: TELEGRAM_BOT_TOKEN
+      - key: TOKEN
+        value: 8703097627:AAF6-XdA4mp-hn3Y-tE2D8uME1eIztwFTNY
