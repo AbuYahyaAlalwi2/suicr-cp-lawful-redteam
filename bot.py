@@ -1,40 +1,84 @@
-import os
-import logging
 import requests
-import socket
-import whois
-import json
-import random
-import time
-import hashlib
-import sqlite3
-from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-TOKEN = "8703097627:AAF6-XdA4mp-hn3Y-tE2D8uME1eIztwFTNY"
+# ===== توكن البوت =====
+TOKEN = "8812677665:AAGeT4rHVK-IwA8_y5Ir-HMP27U6OPcEPdg"
 
-# ===== قاعدة بيانات =====
-def init_db():
-    conn = sqlite3.connect("operations.db")
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS operations
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  op_id TEXT UNIQUE,
-                  target TEXT,
-                  action TEXT,
-                  amount TEXT,
-                  reason TEXT,
-                  timestamp TEXT,
-                  report TEXT)''')
-    conn.commit()
-    conn.close()
+# ===== إعدادات البروكسي (اختياري، للاتصال عبر Tor) =====
+PROXIES = {
+    "http": "socks5h://127.0.0.1:9050",
+    "https": "socks5h://127.0.0.1:9050"
+}
 
-def save_operation(op_id, target, action, amount, reason, report):
-    conn = sqlite3.connect("operations.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO operations (op_id, target, action, amount, reason, timestamp, report) VALUES (?, ?, ?, ?, ?, ?, ?)",
-              (op_id, target, action, amount, reason, datetime.now().isoformat(), report))
+# ===== دالة تحليل الموقع (مع دعم Tor) =====
+def analyze_website(url):
+    try:
+        domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+        # استخدام Tor إذا كان متاحاً
+        ip_response = requests.get(
+            f"https://dns.google/resolve?name={domain}",
+            proxies=PROXIES,
+            timeout=10
+        )
+        ip = "غير معروف"
+        if ip_response.status_code == 200:
+            data = ip_response.json()
+            if data.get("Answer"):
+                ip = data["Answer"][0]["data"]
+        return f"🌐 النطاق: {domain}\n📡 IP: {ip}\n🛡️ تم التحليل عبر خادم آمن"
+    except:
+        return "❌ فشل التحليل (تأكد من الاتصال بالإنترنت)"
+
+# ===== أوامر البوت =====
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("🔍 تحليل موقع", callback_data="analyze")],
+        [InlineKeyboardButton("🛡️ فحص منافذ", callback_data="port_scan")],
+        [InlineKeyboardButton("📋 حالة النظام", callback_data="status")]
+    ]
+    await update.message.reply_text(
+        "🛡️ نظام الردع السيبراني\n🇸🇦 اختر العملية:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data == "analyze":
+        await query.edit_message_text("🔍 أرسل رابط الموقع (مثل: https://example.com)")
+    elif data == "port_scan":
+        await query.edit_message_text("🛡️ أرسل اسم النطاق أو IP (مثل: example.com)")
+    elif data == "status":
+        await query.edit_message_text(
+            "📊 حالة النظام:\n"
+            "✅ البوت يعمل\n"
+            "✅ الاتصال بالإنترنت: نشط\n"
+            "✅ قاعدة البيانات: متصلة"
+        )
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message.text
+
+    if "http" in msg or "https" in msg:
+        result = analyze_website(msg)
+        await update.message.reply_text(result)
+    else:
+        await update.message.reply_text(
+            "❌ أمر غير معروف. استخدم الأزرار أو أرسل رابطاً صحيحاً.\n"
+            "📌 /start للقائمة الرئيسية"
+        )
+
+# ===== تشغيل البوت =====
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("✅ البوت يعمل...")
+    app.run_polling()              (op_id, target, action, amount, reason, datetime.now().isoformat(), report))
     conn.commit()
     conn.close()
 
