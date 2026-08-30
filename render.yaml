@@ -1,16 +1,9 @@
 services:
   - type: web
-    name: suicr-cp-lawful-redteam
+    name: redteam-bot
     env: python
-    buildCommand: |
-      apt-get update
-      apt-get install -y tor obfs4proxy
-      pip install -r requirements.txt
-    startCommand: gunicorn app.main:app
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
     envVars:
-      - key: TELEGRAM_TOKEN
-        value: 8703097627:AAF6-XdA4mp-hn3Y-tE2D8uME1eIztwFTNY
-      - key: OPENROUTER_API_KEY
-        value: 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
-      - key: SECRET_KEY
-        generateValue: true
+      - key: TOKEN
+        value: 8812677665:AAGeT4rHVK-IwA8_y5Ir-HMP27U6OPcEPdg
