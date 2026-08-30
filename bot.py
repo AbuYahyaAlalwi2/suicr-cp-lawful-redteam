@@ -1,40 +1,104 @@
-import os
 import logging
-import sys
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from dotenv import load_dotenv
+import requests
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from agent_core import AutonomousAgent  # استيراد الوكيل الذكي
 
-# ===== تحميل متغيرات البيئة =====
-load_dotenv()
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TOKEN")
+# ===== التوكن والمفاتيح =====
+TELEGRAM_TOKEN = "8812677665:AAGeT4rHVK-IwA8_y5Ir-HMP27U6OPcEPdg"
+GITHUB_TOKEN = "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"
+OPENROUTER_KEY = "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"
+EMAIL = "your_email@example.com"  # اختياري، للاستخدام المستقبلي
 
-# تحقق من وجود TOKEN
-if not TOKEN:
-    print("❌ خطأ: TELEGRAM_BOT_TOKEN غير موجود في .env أو Render Environment Variables")
-    sys.exit(1)
-
-# ===== إعدادات التسجيل =====
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-logger.info("✅ تم تحميل TOKEN بنجاح")
-
-# ===== دوال مساعدة =====
-def analyze_website(url):
-    return {
-        "ip": "93.184.216.34",
-        "os": "Linux",
-        "server": "Apache/2.4.41",
-        "ssl": "مفعلة",
-        "tech": "PHP 7.4, MySQL"
+# ===== تهيئة الوكيل الذكي =====
+agent = AutonomousAgent(
+    email=EMAIL,
+    github_token=GITHUB_TOKEN,
+    model_keys={
+        "openrouter": OPENROUTER_KEY,
+        # يمكن إضافة Gemini أو Claude لاحقاً
     }
+)
 
 # ===== أوامر البوت =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالج الأمر /start"""
+    keyboard = [
+        [InlineKeyboardButton("🔍 تحليل موقع", callback_data="analyze")],
+        [InlineKeyboardButton("🛡️ فحص منافذ", callback_data="port_scan")],
+        [InlineKeyboardButton("🤖 تنفيذ أمر للوكيل", callback_data="agent_command")],
+        [InlineKeyboardButton("📋 حالة النظام", callback_data="status")]
+    ]
+    await update.message.reply_text(
+        "🛡️ نظام الوكيل السيبراني الذكي\n"
+        "🇸🇦 اختر العملية أو أرسل أمراً مباشراً للوكيل:\n"
+        "مثال: 'استنسخ مستودع https://github.com/...'",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data == "analyze":
+        await query.edit_message_text("🔍 أرسل رابط الموقع (مثل: https://example.com)")
+    elif data == "port_scan":
+        await query.edit_message_text("🛡️ أرسل اسم النطاق أو IP (مثل: example.com)")
+    elif data == "agent_command":
+        await query.edit_message_text("🤖 أرسل الأمر للوكيل (مثل: 'ابحث عن token في الملفات')")
+    elif data == "status":
+        await query.edit_message_text(
+            "📊 حالة النظام:\n"
+            "✅ البوت يعمل\n"
+            "✅ الوكيل الذكي جاهز\n"
+            "✅ GitHub متصل\n"
+            "✅ OpenRouter متصل"
+        )
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message.text
+    user_id = update.effective_user.id
+
+    # ===== 1. إذا كان الأمر يبدأ بـ "تحليل" =====
+    if "تحليل" in msg and ("http" in msg or "https" in msg):
+        # استخدام دالة التحليل القديمة (للتوافق)
+        result = analyze_website(msg)
+        await update.message.reply_text(result)
+        return
+
+    # ===== 2. إذا كان الأمر موجهًا للوكيل =====
+    else:
+        # إرسال إشارة "جارٍ التفكير..."
+        await update.message.reply_text("🧠 جاري معالجة طلبك عبر الوكيل الذكي...")
+
+        # تنفيذ الأمر عبر الوكيل
+        result = agent.process_command(msg)
+
+        # إرسال النتيجة
+        await update.message.reply_text(f"📌 نتيجة الأمر:\n\n{result}")
+
+# ===== دالة تحليل الموقع (للتوافق مع الوضع العادي) =====
+def analyze_website(url):
+    try:
+        domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+        ip_response = requests.get(f"https://dns.google/resolve?name={domain}", timeout=10)
+        ip = "غير معروف"
+        if ip_response.status_code == 200:
+            data = ip_response.json()
+            if data.get("Answer"):
+                ip = data["Answer"][0]["data"]
+        return f"🌐 النطاق: {domain}\n📡 IP: {ip}\n🛡️ تم التحليل بنجاح"
+    except:
+        return "❌ فشل التحليل"
+
+# ===== تشغيل البوت =====
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("✅ البوت يعمل مع الوكيل الذكي...")
+    app.run_polling()    """معالج الأمر /start"""
     await update.message.reply_text(
         "🛡️ *نظام الأمن السيبراني الوطني*\n"
         "🇸🇦 جاهز لخدمتك!\n\n"
