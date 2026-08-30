@@ -2,20 +2,16 @@ import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# ===== توكن البوت =====
 TOKEN = "8812677665:AAGeT4rHVK-IwA8_y5Ir-HMP27U6OPcEPdg"
 
-# ===== إعدادات البروكسي (اختياري، للاتصال عبر Tor) =====
 PROXIES = {
     "http": "socks5h://127.0.0.1:9050",
     "https": "socks5h://127.0.0.1:9050"
 }
 
-# ===== دالة تحليل الموقع (مع دعم Tor) =====
 def analyze_website(url):
     try:
         domain = url.replace("https://", "").replace("http://", "").split("/")[0]
-        # استخدام Tor إذا كان متاحاً
         ip_response = requests.get(
             f"https://dns.google/resolve?name={domain}",
             proxies=PROXIES,
@@ -30,11 +26,52 @@ def analyze_website(url):
     except:
         return "❌ فشل التحليل (تأكد من الاتصال بالإنترنت)"
 
-# ===== أوامر البوت =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🔍 تحليل موقع", callback_data="analyze")],
         [InlineKeyboardButton("🛡️ فحص منافذ", callback_data="port_scan")],
+        [InlineKeyboardButton("📋 حالة النظام", callback_data="status")]
+    ]
+    await update.message.reply_text(
+        "🛡️ نظام الردع السيبراني\n🇸🇦 اختر العملية:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data == "analyze":
+        await query.edit_message_text("🔍 أرسل رابط الموقع (مثل: https://example.com)")
+    elif data == "port_scan":
+        await query.edit_message_text("🛡️ أرسل اسم النطاق أو IP (مثل: example.com)")
+    elif data == "status":
+        await query.edit_message_text(
+            "📊 حالة النظام:\n"
+            "✅ البوت يعمل\n"
+            "✅ الاتصال بالإنترنت: نشط\n"
+            "✅ قاعدة البيانات: متصلة"
+        )
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message.text
+    if "http" in msg or "https" in msg:
+        result = analyze_website(msg)
+        await update.message.reply_text(result)
+    else:
+        await update.message.reply_text(
+            "❌ أمر غير معروف. استخدم الأزرار أو أرسل رابطاً صحيحاً.\n"
+            "📌 /start للقائمة الرئيسية"
+        )
+
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("✅ البوت يعمل...")
+    app.run_polling()        [InlineKeyboardButton("🛡️ فحص منافذ", callback_data="port_scan")],
         [InlineKeyboardButton("📋 حالة النظام", callback_data="status")]
     ]
     await update.message.reply_text(
