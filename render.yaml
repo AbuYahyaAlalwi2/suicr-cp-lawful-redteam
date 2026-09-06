@@ -1,13 +1,6 @@
 services:
   - type: web
-    name: redteam-bot
+    name: cyber-orchestrator
     env: python
-    region: oregon
-    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python bot.py
-    envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        fromEnv: TELEGRAM_BOT_TOKEN
-      - key: TELEGRAM_CHAT_ID
-        fromEnv: TELEGRAM_CHAT_ID
+    startCommand: python server.py
